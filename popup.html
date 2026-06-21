@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet"
+        href="bootstrap/dist/css/bootstrap.min.css" />
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 12px;
+      min-width: 220px;
+    }
+
+    h3 {
+      margin: 8px 0;
+    }
+
+    button {
+      display: block;
+      width: 100%;
+      margin-top: 6px;
+      padding: 8px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    #toggleDark {
+      background: #333;
+      color: white;
+    }
+
+    #startTTS {
+      background: #4caf50;
+      color: white;
+    }
+
+    #stopTTS {
+      background: #f44336;
+      color: white;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="tab-pane fade show active"
+       id="contact-tab-pane"
+       role="tabpanel"
+       aria-labelledby="contact-tab"
+       tabindex="0">
+    <h3>AI WebSocket</h3>
+
+    <div class="input-group mb-3">
+      <label>
+        <input type="checkbox"
+               id="domainToggle"> <span id="domainLabel">Cho phép domain
+          này</span>
+      </label>
+    </div>
+
+    <div class="input-group mb-3">
+      <div class="input-group-text">
+        <span>Port:</span>
+      </div>
+      <input type="text"
+             class="form-control"
+             placeholder="Port:5050"
+             aria-label="Port:5050"
+             aria-describedby="connectWS"
+             id="inPort">
+    </div>
+
+    <div class="input-group mb-3">
+      <button class="form-control btn btn-outline-secondary"
+              type="button"
+              id="cmdConnectWS">Connect</button>
+    </div>
+
+
+
+  </div>
+  <script src="bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script src="options.js"></script>
+</body>
+
+</html>

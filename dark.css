@@ -1,0 +1,9 @@
+/* Cách nhanh gọn để "đảo màu" thành dark mode cơ bản */
+html {
+  filter: invert(1) hue-rotate(180deg) !important;
+}
+
+/* Trả lại màu gốc cho hình ảnh/video/iframe để đỡ bị ngược màu */
+img, video, picture, canvas, iframe {
+  filter: invert(1) hue-rotate(180deg) !important;
+}
