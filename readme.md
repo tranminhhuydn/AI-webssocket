@@ -1,6 +1,6 @@
 # AI Websocket
 
-<https://www.youtube.com/watch?v=j9ok8ofDCMk>
+[ ![Blender and AI](https://img.youtube.com/vi/j9ok8ofDCMk/default.jpg)](https://www.youtube.com/watch?v=j9ok8ofDCMk)
 
 
 AI Websocket is a powerful bridge between the Google Chrome browser and Blender software, allowing you to control and build 3D models directly through Python scripts sent via the WebSocket protocol from [chatgpt.com](http://chatgpt.com) or [gemini.google.com](http://gemini.google.com).
