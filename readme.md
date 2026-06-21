@@ -13,6 +13,7 @@ You need an AI GET addon:
 After installation, start the AI ​​websocket to listen and copy the script.
 
 
+Viet Nam
 
 # AI websocket
 
