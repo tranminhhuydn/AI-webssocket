@@ -1,5 +1,7 @@
 
-const WS_URL = "ws://localhost:3000/ws";
+const DEFAULT_WS_URL = "ws://localhost:3000/ws";
+let wsUrl = DEFAULT_WS_URL;
+let disconnectRequested = false;
 const CLIENT_INFO = {
   name: "ai-lexicon-chrome-extension",
   version: "1.0.0",
@@ -19,21 +21,31 @@ const toolNames = new Set();
 /**
  * Kết nối tới AI Lexicon MCP WebSocket server.
  */
-function connectWS() {
-  if (
-    socket &&
-    [WebSocket.CONNECTING, WebSocket.OPEN].includes(socket.readyState)
-  ) {
-    return;
+function connectWS(port) {
+  if (port !== undefined && port !== null && String(port).trim() !== "") {
+    const parsedPort = Number.parseInt(String(port), 10);
+    if (!Number.isInteger(parsedPort) || parsedPort < 1 || parsedPort > 65535) {
+      throw new Error("Port must be an integer between 1 and 65535");
+    }
+    wsUrl = `ws://localhost:${parsedPort}/ws`;
   }
 
+  disconnectRequested = false;
   clearTimeout(reconnectTimer);
 
-  const ws = new WebSocket(WS_URL);
+  if (socket && [WebSocket.CONNECTING, WebSocket.OPEN].includes(socket.readyState)) {
+    if (socket.url === wsUrl) return;
+    const previousSocket = socket;
+    socket = null;
+    previousSocket.close();
+  }
+
+  const ws = new WebSocket(wsUrl);
   socket = ws;
 
   ws.addEventListener("open", () => {
-    console.info("[AI Lexicon] WebSocket connected");
+    console.info("[AI Lexicon] WebSocket connected:", wsUrl);
+    notifyConnectionState("WS_CONNECTED");
 
     initializeMCP(ws).catch((error) => {
       console.error("[AI Lexicon] MCP initialization failed:", error);
@@ -62,7 +74,8 @@ function connectWS() {
     );
 
     console.warn("[AI Lexicon] WebSocket disconnected");
-    scheduleReconnect();
+    notifyConnectionState("WS_DISCONNECTED");
+    if (!disconnectRequested) scheduleReconnect();
   });
 }
 
@@ -238,6 +251,7 @@ function rejectPendingRequests(error) {
  */
 function scheduleReconnect() {
   clearTimeout(reconnectTimer);
+  if (disconnectRequested) return;
 
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
@@ -245,11 +259,42 @@ function scheduleReconnect() {
   }, RECONNECT_DELAY);
 }
 
+function disconnectWS() {
+  disconnectRequested = true;
+  clearTimeout(reconnectTimer);
+  reconnectTimer = null;
+  initialized = false;
+  toolNames.clear();
+  rejectPendingRequests(new Error("AI Lexicon WebSocket disconnected by user"));
+
+  const currentSocket = socket;
+  socket = null;
+  if (currentSocket && currentSocket.readyState < WebSocket.CLOSING) {
+    currentSocket.close(1000, "Disconnected by user");
+  }
+
+  notifyConnectionState("WS_DISCONNECTED");
+  return { ok: true, connected: false, url: wsUrl };
+}
+
+function notifyConnectionState(type) {
+  chrome.runtime.sendMessage({ type, url: wsUrl }).catch(() => {
+    // Popup/content script may not be open.
+  });
+}
+
 /**
  * Action handlers: định tuyến theo message.action.
  * Thêm action mới tại đây, không cần thêm if.
  */
 const methods = Object.freeze({
+  connectWS: (message) => {
+    connectWS(message.port);
+    return { ok: true, status: "connecting", url: wsUrl };
+  },
+
+  disconnectWS: () => disconnectWS(),
+
   aiLexiconCall: async (message) => {
     const tool = message.tool || "answer";
     const args = message.arguments ?? {};
