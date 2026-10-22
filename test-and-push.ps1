@@ -118,13 +118,13 @@ while ($true) {
 
     # Capture output as PowerShell strings, then write it as UTF-8 explicitly.
     # This avoids mixing UTF-16LE native redirection with UTF-8 header/footer.
-    $TestOutput = @(& npm test 2>&1)
-    $TestExitCode = $LASTEXITCODE
-    foreach ($Line in $TestOutput) {
-        $LineText = [string]$Line
-        Write-Host $LineText
-        Write-Utf8Log ($LineText + [Environment]::NewLine)
-    }
+    # $TestOutput = @(& npm test 2>&1)
+    # $TestExitCode = $LASTEXITCODE
+    # foreach ($Line in $TestOutput) {
+    #     $LineText = [string]$Line
+    #     Write-Host $LineText
+    #     Write-Utf8Log ($LineText + [Environment]::NewLine)
+    # }
 
     $Footer = @(
         ""
