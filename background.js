@@ -141,8 +141,6 @@ function handleWSMessage(data) {
           ? message.params.message
           : "AI Lexicon connected";
 
-      console.info("[AI Lexicon] Server says:", greeting);
-
       chrome.runtime.sendMessage({
         type: "AI_LEXICON_WELCOME",
         message: greeting,
