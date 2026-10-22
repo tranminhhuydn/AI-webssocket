@@ -15,6 +15,7 @@ let nextId = 1;
 let reconnectTimer = null;
 let initialized = false;
 let latestWelcome = null;
+let latestTestLogReview = null;
 
 const pending = new Map();
 const toolNames = new Set();
@@ -151,6 +152,26 @@ function handleWSMessage(data) {
 
       chrome.runtime.sendMessage(latestWelcome).catch(() => {
         // Content script có thể chưa sẵn sàng; latestWelcome được lưu để truy vấn lại.
+      });
+      return;
+    }
+
+    if (message.method === "notifications/ai-lexicon/test-log-review") {
+      const reviewMessage =
+        typeof message.params?.message === "string"
+          ? message.params.message
+          : "Xem lại log/test.log nhé.";
+
+      latestTestLogReview = {
+        type: "AI_LEXICON_TEST_LOG_REVIEW",
+        message: reviewMessage,
+        path: message.params?.path || "log/test.log",
+        modifiedAt: message.params?.modifiedAt,
+        size: message.params?.size,
+      };
+
+      chrome.runtime.sendMessage(latestTestLogReview).catch(() => {
+        // Content script có thể chưa sẵn sàng; nội dung được lưu để truy vấn lại.
       });
       return;
     }
@@ -335,6 +356,11 @@ const methods = Object.freeze({
   getLastWelcome: () => ({
     ok: true,
     welcome: latestWelcome,
+  }),
+
+  getLastTestLogReview: () => ({
+    ok: true,
+    review: latestTestLogReview,
   }),
 });
 
