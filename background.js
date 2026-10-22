@@ -133,8 +133,27 @@ function handleWSMessage(data) {
     return;
   }
 
-  // Message không có id là notification.
+  // Server notifications không có id; xử lý welcome trước khi bỏ qua notification khác.
   if (message.id === undefined || message.id === null) {
+    if (message.method === "notifications/ai-lexicon/welcome") {
+      const greeting =
+        typeof message.params?.message === "string"
+          ? message.params.message
+          : "AI Lexicon connected";
+
+      console.info("[AI Lexicon] Server says:", greeting);
+
+      chrome.runtime.sendMessage({
+        type: "AI_LEXICON_WELCOME",
+        message: greeting,
+        server: message.params?.server,
+        version: message.params?.version,
+      }).catch(() => {
+        // Không có popup hoặc extension page đang lắng nghe; lời chào vẫn có trong Service Worker console.
+      });
+      return;
+    }
+
     console.debug("[AI Lexicon] Server notification:", message);
     return;
   }
@@ -311,19 +330,6 @@ const methods = Object.freeze({
     ok: true,
     ...getStatus(),
   }),
-  "notifications/ai-lexicon/welcome": (message) => {
-    const greeting =
-      message.params?.message || "AI Lexicon connected";
-
-    console.info("[AI Lexicon] Server:", greeting);
-
-    chrome.runtime.sendMessage({
-      action: "aiLexiconWelcome",
-      message: greeting,
-    }).catch(() => {
-      // Không có content script đang lắng nghe.
-    });
-  }
 });
 
 /**
