@@ -10,6 +10,7 @@
     "storage"
   ],
   "host_permissions": [
+    "ws://localhost:3000/*",
     "*://*/*"
   ],
   "optional_host_permissions": [
