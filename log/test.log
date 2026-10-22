@@ -1,7 +1,7 @@
 Repository: D:/dev/chrome-extension/AI-webssocket
 Branch: AI-lexicon-extention-chorme
-Tested commit: ad1a23ed2e809f9acde72ad962c69e5660382e8d
-Started: 2026-10-22 21:29:40 +07:00
+Tested commit: 24b74249cc2cec2b5e094ed80cbc5cf6fc209d18
+Started: 2026-10-22 21:30:38 +07:00
 Command: npm test
 ------------------------------------------------------------
 
