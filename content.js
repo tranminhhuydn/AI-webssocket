@@ -589,87 +589,22 @@ if (document.readyState === "loading") {
 }
 
 
-
-(() => {
-  const SUCCESS_MESSAGE = "✅ AI Lexicon: WebSocket đã kết nối.";
-  const FAILURE_MESSAGE = "❌ AI Lexicon: Không kết nối được WebSocket.";
-  const WAIT_MESSAGE = "⏳ AI Lexicon: Đang kết nối WebSocket...";
-
-  function findChatGPTInput() {
-    return (
-      document.querySelector("#prompt-textarea") ||
-      document.querySelector(
-        '[contenteditable="true"][data-placeholder]'
-      ) ||
-      document.querySelector(
-        '[contenteditable="true"][role="textbox"]'
-      )
-    );
+// Fill the ChatGPT composer when the MCP server sends its welcome notification.
+function fillServerWelcome(message, attempts = 20) {
+  if (!isSupportedHost() || !window.location.hostname.includes("chatgpt")) return;
+  const composer = findComposerGPT();
+  if (!composer) {
+    if (attempts > 0) setTimeout(() => fillServerWelcome(message, attempts - 1), 500);
+    return;
   }
+  if (typeof message !== "string" || !message.trim()) return;
+  const current = composer.isContentEditable
+    ? (composer.innerText || composer.textContent || "")
+    : (composer.value || "");
+  if (current.includes(message)) return;
+  setComposerText(composer, current.trim() ? current.trim() + "\n\n" + message : message);
+}
 
-  function fillChatGPTInput(message) {
-    const input = findChatGPTInput();
-
-    if (!input) return false;
-
-    input.focus();
-
-    if (input instanceof HTMLTextAreaElement) {
-      const setter = Object.getOwnPropertyDescriptor(
-        HTMLTextAreaElement.prototype,
-        "value"
-      )?.set;
-
-      if (setter) setter.call(input, message);
-      else input.value = message;
-
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-    } else {
-      input.textContent = message;
-      input.dispatchEvent(
-        new InputEvent("input", {
-          bubbles: true,
-          inputType: "insertText",
-          data: message,
-        })
-      );
-    }
-
-    return true;
-  }
-
-  function fillWhenReady(message, attempts = 20) {
-    if (fillChatGPTInput(message)) return;
-
-    if (attempts > 0) {
-      setTimeout(() => fillWhenReady(message, attempts - 1), 500);
-    }
-  }
-
-  // Hiển thị trạng thái ngay khi script chạy.
-  fillWhenReady(WAIT_MESSAGE);
-
-  // Hỏi background.js về trạng thái WebSocket.
-  try {
-    chrome.runtime.sendMessage(
-      { action: "aiLexiconStatus" },
-      (response) => {
-        if (chrome.runtime.lastError || !response?.ok) {
-          fillWhenReady(FAILURE_MESSAGE);
-          return;
-        }
-
-        const connected =
-          response.connected === true &&
-          response.initialized === true;
-
-        fillWhenReady(
-          connected ? SUCCESS_MESSAGE : FAILURE_MESSAGE
-        );
-      }
-    );
-  } catch (error) {
-    fillWhenReady(FAILURE_MESSAGE);
-  }
-})();
+chrome.runtime.onMessage.addListener((message) => {
+  if (message?.type === "AI_LEXICON_WELCOME") fillServerWelcome(message.message);
+});
