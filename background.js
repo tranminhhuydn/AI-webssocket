@@ -14,6 +14,7 @@ let socket = null;
 let nextId = 1;
 let reconnectTimer = null;
 let initialized = false;
+let latestWelcome = null;
 
 const pending = new Map();
 const toolNames = new Set();
@@ -141,13 +142,15 @@ function handleWSMessage(data) {
           ? message.params.message
           : "AI Lexicon connected";
 
-      chrome.runtime.sendMessage({
+      latestWelcome = {
         type: "AI_LEXICON_WELCOME",
         message: greeting,
         server: message.params?.server,
         version: message.params?.version,
-      }).catch(() => {
-        // Không có popup hoặc extension page đang lắng nghe; lời chào vẫn có trong Service Worker console.
+      };
+
+      chrome.runtime.sendMessage(latestWelcome).catch(() => {
+        // Content script có thể chưa sẵn sàng; latestWelcome được lưu để truy vấn lại.
       });
       return;
     }
@@ -327,6 +330,11 @@ const methods = Object.freeze({
   aiLexiconStatus: () => ({
     ok: true,
     ...getStatus(),
+  }),
+
+  getLastWelcome: () => ({
+    ok: true,
+    welcome: latestWelcome,
   }),
 });
 
