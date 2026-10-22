@@ -108,7 +108,7 @@ while ($true) {
         "Branch: $Branch"
         "Tested commit: $LastTestedCommit"
         "Started: $StartedAt"
-        "Command: npm test"
+        #"Command: npm test"
         "------------------------------------------------------------"
         ""
     ) -join [Environment]::NewLine
