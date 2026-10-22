@@ -589,22 +589,66 @@ if (document.readyState === "loading") {
 }
 
 
-// Fill the ChatGPT composer when the MCP server sends its welcome notification.
-function fillServerWelcome(message, attempts = 20) {
-  if (!isSupportedHost() || !window.location.hostname.includes("chatgpt")) return;
+// Insert the MCP welcome into ChatGPT's composer. The server notification may
+// arrive before this content script loads, so request the cached copy as well.
+function fillServerWelcome(message, attempts = 30) {
+  if (
+    !isSupportedHost() ||
+    !window.location.hostname.includes("chatgpt") ||
+    typeof message !== "string" ||
+    !message.trim()
+  ) return;
+
   const composer = findComposerGPT();
   if (!composer) {
-    if (attempts > 0) setTimeout(() => fillServerWelcome(message, attempts - 1), 500);
+    if (attempts > 0) {
+      setTimeout(() => fillServerWelcome(message, attempts - 1), 500);
+    }
     return;
   }
-  if (typeof message !== "string" || !message.trim()) return;
+
   const current = composer.isContentEditable
     ? (composer.innerText || composer.textContent || "")
     : (composer.value || "");
   if (current.includes(message)) return;
+
+  if (composer.isContentEditable) {
+    composer.focus();
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(composer);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    const prefix = current.trim() ? "\n\n" : "";
+    const inserted = document.execCommand("insertText", false, prefix + message);
+    if (!inserted) {
+      setComposerText(composer, current.trim() ? current.trim() + "\n\n" + message : message);
+    }
+    composer.dispatchEvent(new InputEvent("input", {
+      bubbles: true,
+      inputType: "insertText",
+      data: message,
+    }));
+    return;
+  }
+
   setComposerText(composer, current.trim() ? current.trim() + "\n\n" + message : message);
 }
 
 chrome.runtime.onMessage.addListener((message) => {
-  if (message?.type === "AI_LEXICON_WELCOME") fillServerWelcome(message.message);
+  if (message?.type === "AI_LEXICON_WELCOME") {
+    fillServerWelcome(message.message);
+  }
 });
+
+// Recover a greeting that arrived before the page's listener was registered.
+if (isSupportedHost() && window.location.hostname.includes("chatgpt")) {
+  chrome.runtime.sendMessage({ action: "getLastWelcome" }, (response) => {
+    if (chrome.runtime.lastError) return;
+    if (response?.ok && response.welcome?.message) {
+      fillServerWelcome(response.welcome.message);
+    }
+  });
+}
