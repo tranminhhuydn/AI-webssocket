@@ -638,17 +638,27 @@ function fillServerWelcome(message, attempts = 30) {
 }
 
 chrome.runtime.onMessage.addListener((message) => {
-  if (message?.type === "AI_LEXICON_WELCOME") {
+  if (
+    message?.type === "AI_LEXICON_WELCOME" ||
+    message?.type === "AI_LEXICON_TEST_LOG_REVIEW"
+  ) {
     fillServerWelcome(message.message);
   }
 });
 
-// Recover a greeting that arrived before the page's listener was registered.
+// Recover notifications that arrived before this content script was ready.
 if (isSupportedHost() && window.location.hostname.includes("chatgpt")) {
   chrome.runtime.sendMessage({ action: "getLastWelcome" }, (response) => {
     if (chrome.runtime.lastError) return;
     if (response?.ok && response.welcome?.message) {
       fillServerWelcome(response.welcome.message);
+    }
+  });
+
+  chrome.runtime.sendMessage({ action: "getLastTestLogReview" }, (response) => {
+    if (chrome.runtime.lastError) return;
+    if (response?.ok && response.review?.message) {
+      fillServerWelcome(response.review.message);
     }
   });
 }
