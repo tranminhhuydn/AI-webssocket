@@ -1,112 +1,160 @@
 (() => {
-    let domain = "";
+  let domain = "";
+  const UI = {};
 
-    const UI = {};
+  function bindUI() {
+    document.querySelectorAll("[id]").forEach((el) => {
+      UI[el.id] = el;
+    });
+  }
 
-    function bindUI() {
-        document.querySelectorAll("[id]").forEach(el => {
-            UI[el.id] = el;
-        });
+  function sendRuntimeMessage(message) {
+    return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage(message, (response) => {
+        const error = chrome.runtime.lastError;
+        if (error) {
+          reject(new Error(error.message));
+          return;
+        }
+        resolve(response);
+      });
+    });
+  }
+
+  function setConnectionState(state, details = "") {
+    if (!UI.cmdConnectWS) return;
+
+    UI.cmdConnectWS.dataset.state = state;
+    if (state === "connected") {
+      UI.cmdConnectWS.textContent = "Disconnect";
+      UI.cmdConnectWS.classList.add("btn-success");
+      UI.cmdConnectWS.classList.remove("btn-outline-secondary", "btn-danger");
+    } else if (state === "connecting") {
+      UI.cmdConnectWS.textContent = "Connecting…";
+      UI.cmdConnectWS.classList.remove("btn-success", "btn-danger");
+      UI.cmdConnectWS.classList.add("btn-outline-secondary");
+    } else {
+      UI.cmdConnectWS.textContent = "Connect";
+      UI.cmdConnectWS.classList.remove("btn-success", "btn-danger");
+      UI.cmdConnectWS.classList.add("btn-outline-secondary");
     }
 
-    function getCurrentDomain() {
-        return new Promise((resolve) => {
-            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                const tab = tabs[0];
-                if (!tab?.url) return resolve("");
+    UI.cmdConnectWS.title = details;
+  }
 
-                try {
-                    const host = new URL(tab.url).hostname;
-                    resolve(host);
-                } catch (e) {
-                    resolve("");
-                }
-            });
-        });
-    }
+  function getCurrentDomain() {
+    return new Promise((resolve) => {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const tab = tabs[0];
+        if (!tab?.url) return resolve("");
 
-    function loadStorage() {
-        chrome.storage.sync.get(["domainToggle", "inPort"], (res) => {
-            const list = res.domainToggle || [];
+        try {
+          resolve(new URL(tab.url).hostname);
+        } catch {
+          resolve("");
+        }
+      });
+    });
+  }
 
-            UI.domainToggle.checked = list.includes(domain);
-            UI.inPort.value = res.inPort || 5050;
-        });
-    }
+  function loadStorage() {
+    chrome.storage.sync.get(["domainToggle", "inPort"], (res) => {
+      const list = res.domainToggle || [];
+      if (UI.domainToggle) UI.domainToggle.checked = list.includes(domain);
+      if (UI.inPort) UI.inPort.value = res.inPort || 3000;
+    });
+  }
 
-    function saveDomainToggle() {
-        UI.domainToggle.addEventListener("change", () => {
-            chrome.storage.sync.get(["domainToggle"], (res) => {
-                let list = res.domainToggle || [];
+  function saveDomainToggle() {
+    if (!UI.domainToggle) return;
 
-                if (UI.domainToggle.checked) {
-                    if (!list.includes(domain)) list.push(domain);
-                } else {
-                    list = list.filter(d => d !== domain);
-                }
+    UI.domainToggle.addEventListener("change", () => {
+      chrome.storage.sync.get(["domainToggle"], (res) => {
+        let list = res.domainToggle || [];
 
-                chrome.storage.sync.set({ domainToggle: list });
-            });
-        });
-    }
-
-    function savePort() {
-        UI.inPort.addEventListener("change", () => {
-            chrome.storage.sync.set({ inPort: UI.inPort.value });
-        });
-    }
-
-    function bindEvents() {
-       
-        // connect WS
-        UI.cmdConnectWS.addEventListener("click", () => {
-            chrome.runtime.sendMessage(
-                { action: "connectWS", port: UI.inPort.value },
-                (res) => {
-                    console.log("📩 background response:", res);
-                }
-            );
-            UI.cmdConnectWS.textContent =
-                UI.cmdConnectWS.textContent === "✅ Connect" ? "❌ Disconnect" : "✅ Connect";
-        });
-
-        saveDomainToggle();
-        savePort();
-    }
-
-    async function init() {
-        console.log("[options.js] init");
-
-        bindUI();
-
-        domain = await getCurrentDomain();
-
-        if (UI.domainLabel) {
-            UI.domainLabel.textContent = `Cho phép ${domain}`;
+        if (UI.domainToggle.checked) {
+          if (!list.includes(domain)) list.push(domain);
+        } else {
+          list = list.filter((item) => item !== domain);
         }
 
-        if (UI.domainLabelTTS) {
-            UI.domainLabelTTS.textContent = domain;
+        chrome.storage.sync.set({ domainToggle: list });
+      });
+    });
+  }
+
+  function savePort() {
+    if (!UI.inPort) return;
+
+    UI.inPort.addEventListener("change", () => {
+      chrome.storage.sync.set({ inPort: UI.inPort.value });
+    });
+  }
+
+  async function refreshConnectionState() {
+    try {
+      const status = await sendRuntimeMessage({ action: "aiLexiconStatus" });
+      if (status?.connected) {
+        setConnectionState(status.initialized ? "connected" : "connecting");
+      } else {
+        setConnectionState("disconnected");
+      }
+    } catch (error) {
+      setConnectionState("disconnected", error.message);
+    }
+  }
+
+  function bindEvents() {
+    UI.cmdConnectWS.addEventListener("click", async () => {
+      const currentState = UI.cmdConnectWS.dataset.state;
+      setConnectionState("connecting");
+
+      try {
+        if (currentState === "connected" || currentState === "connecting") {
+          await sendRuntimeMessage({ action: "disconnectWS" });
+          setConnectionState("disconnected");
+        } else {
+          const port = String(UI.inPort.value || "3000").trim();
+          const response = await sendRuntimeMessage({ action: "connectWS", port });
+
+          if (response?.ok === false) {
+            throw new Error(response.error || "Could not connect");
+          }
+
+          setConnectionState("connecting", response?.url || "");
         }
+      } catch (error) {
+        setConnectionState("disconnected", error.message);
+        console.error("[options.js] WebSocket action failed:", error);
+      }
+    });
 
-        loadStorage();
-        bindEvents();
+    saveDomainToggle();
+    savePort();
 
-        chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    chrome.runtime.onMessage.addListener((message) => {
+      if (message?.type === "WS_CONNECTED") {
+        setConnectionState("connected", message.url || "");
+      } else if (message?.type === "WS_DISCONNECTED") {
+        setConnectionState("disconnected", message.url || "");
+      }
+    });
+  }
 
-            if (msg.type === "WS_CONNECTED") {
-                console.log("Popup nhận được: đã kết nối");
-                UI.cmdConnectWS.textContent = "✅ Connect"
-            }
+  async function init() {
+    console.log("[options.js] init");
+    bindUI();
 
-            if (msg.type === "WS_DISCONNECTED") {
-                console.log("Popup nhận được: mất kết nối");
-                UI.cmdConnectWS.textContent = "❌ Disconnect"
-            }
+    domain = await getCurrentDomain();
 
-        });
-
+    if (UI.domainLabel) {
+      UI.domainLabel.textContent = domain ? `Cho phép ${domain}` : "Cho phép domain này";
     }
 
-    document.addEventListener("DOMContentLoaded", init);
+    loadStorage();
+    bindEvents();
+    await refreshConnectionState();
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
 })();
