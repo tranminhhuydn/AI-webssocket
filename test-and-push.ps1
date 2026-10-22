@@ -100,7 +100,7 @@ while ($true) {
         Start-Sleep -Seconds $PollSeconds
         continue
     }
-
+    #"Command: npm test"
     $Branch = (git branch --show-current).Trim()
     $StartedAt = Get-Date -Format "yyyy-MM-dd HH:mm:ss zzz"
     $Header = @(
@@ -108,7 +108,6 @@ while ($true) {
         "Branch: $Branch"
         "Tested commit: $LastTestedCommit"
         "Started: $StartedAt"
-        #"Command: npm test"
         "------------------------------------------------------------"
         ""
     ) -join [Environment]::NewLine
